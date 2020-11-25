@@ -2,9 +2,9 @@ package com.recommender.dataload
 
 
 import org.apache.spark.sql.SparkSession
-
 import com.recommender.configs.UserSparkConf
 import com.recommender.configs.UserMongoDBConf
+import org.apache.spark.SparkConf
 
 object DataLoader{
     val reviewsDataPath="/usr/local/recommend/Magazine_Subscriptions.json";
