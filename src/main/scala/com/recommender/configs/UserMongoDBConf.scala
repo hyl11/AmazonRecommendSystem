@@ -1,5 +1,8 @@
 package com.recommender.configs
 
-class UserMongoDBConf {
+object UserMongoDBConf {
+    val uri : String = "mongodb://localhost:27017/recommend"
+    val reviewCollection : String = "reviews"
+    val productCollection : String = "products"
 
 }

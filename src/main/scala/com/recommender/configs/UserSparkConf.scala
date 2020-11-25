@@ -1,5 +1,5 @@
 package com.recommender.configs
 
-class UserSparkConf {
-
+object UserSparkConf {
+    val cores : String = "local[*]"
 }
