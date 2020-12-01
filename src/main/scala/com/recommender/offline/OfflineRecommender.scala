@@ -2,11 +2,23 @@ package com.recommender.offline
 
 import com.recommender.configs.{UserMongoDBConf, UserSparkConf}
 import org.apache.spark.SparkConf
-import org.apache.spark.ml.recommendation.ALS
-import org.apache.spark.ml.recommendation.ALS.Rating
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.mllib.recommendation.{ALS, Rating}
+import org.apache.spark.sql.SparkSession
+import org.jblas.DoubleMatrix
+
+
+// 定义标准推荐对象
+case class Recommendation( productId: Int, score: Double )
+// 定义用户的推荐列表
+case class UserRecs( userId: Int, recs: Seq[Recommendation] )
+// 定义商品相似度列表
+case class ProductRecs( productId: Int, recs: Seq[Recommendation] )
 
 object OfflineRecommender {
+
+    val USER_MAX_RECOMMENDATION = 20
+
     def main(args: Array[String]): Unit = {
 
         // 创建spark session
@@ -14,15 +26,24 @@ object OfflineRecommender {
         val spark = SparkSession.builder().config(sparkConf).getOrCreate()
         import spark.implicits._
         //读取mongoDB中的业务数
-        val ratingRDD = spark
+        val ratingDF = spark
           .read
           .option("uri",UserMongoDBConf.uri)
           .option("collection",UserMongoDBConf.reviewCollection)
           .format("com.mongodb.spark.sql")
           .load()
           .select("reviewerID", "asin", "overall")
+
+        /*   encode string id to int id for als */
+        val reviewerIndexer = new StringIndexer().setInputCol("reviewerID").setOutputCol("intReviewerID")
+        val partIntDF = reviewerIndexer.fit(ratingDF).transform(ratingDF)
+        val productIndexer = new StringIndexer().setInputCol("asin").setOutputCol("intAsin")
+        val allIntDF = productIndexer.fit(partIntDF).transform(partIntDF)
+
+        /*  get rdd of data  */
+        val ratingRDD = allIntDF.select("intReviewerID", "intAsin", "overall")
           .rdd
-          .map(x => (x.getString(0), x.getString(1), x.getDouble(2)))
+          .map(x => (x.getDouble(0).toInt, x.getDouble(1).toInt, x.getDouble(2)))
           .cache()
 
         //用户的数据集 RDD[Int]
@@ -35,7 +56,7 @@ object OfflineRecommender {
         val (rank,iterations,lambda) = (50, 5, 0.01)
         // 调用ALS算法训练隐语义模型
 
-        val model = ALS.train(trainData,rank=rank,maxIter = iterations,alpha = lambda)
+        val model = ALS.train(trainData,rank,iterations,lambda)
 
         // 2. 获得预测评分矩阵，得到用户的推荐列表
         // 用userRDD和productRDD做一个笛卡尔积，得到空的userProductsRDD表示的评分矩阵
@@ -53,8 +74,8 @@ object OfflineRecommender {
           }
           .toDF()
         userRecs.write
-          .option("uri", mongoConfig.uri)
-          .option("collection", USER_RECS)
+          .option("uri", UserMongoDBConf.uri)
+          .option("collection", UserMongoDBConf.userRecs)
           .mode("overwrite")
           .format("com.mongodb.spark.sql")
           .save()
@@ -82,8 +103,8 @@ object OfflineRecommender {
           }
           .toDF()
         productRecs.write
-          .option("uri", mongoConfig.uri)
-          .option("collection", PRODUCT_RECS)
+          .option("uri", UserMongoDBConf.uri)
+          .option("collection", UserMongoDBConf.productRecs)
           .mode("overwrite")
           .format("com.mongodb.spark.sql")
           .save()

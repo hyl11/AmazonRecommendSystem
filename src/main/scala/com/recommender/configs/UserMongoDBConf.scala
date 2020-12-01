@@ -8,5 +8,6 @@ object UserMongoDBConf {
     val mostPopularProductsCollection = "mostPopularProducts"
     val mostRecentProductsCollection = "mostRecentProducts"
     val averageProductsCollection = "averageProducts"
-
+    val userRecs = "userRecs"
+    val productRecs = "productRecs"
 }
