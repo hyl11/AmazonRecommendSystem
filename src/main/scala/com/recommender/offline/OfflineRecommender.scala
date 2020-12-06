@@ -23,6 +23,7 @@ object OfflineRecommender {
 
         // 创建spark session
         val sparkConf = new SparkConf().setMaster(UserSparkConf.cores).setAppName("OfflineRecommender")
+
         val spark = SparkSession.builder().config(sparkConf).getOrCreate()
         import spark.implicits._
         //读取mongoDB中的业务数
@@ -58,27 +59,6 @@ object OfflineRecommender {
 
         val model = ALS.train(trainData,rank,iterations,lambda)
 
-        // 2. 获得预测评分矩阵，得到用户的推荐列表
-        // 用userRDD和productRDD做一个笛卡尔积，得到空的userProductsRDD表示的评分矩阵
-        val userProducts = userRDD.cartesian(productRDD)
-        val preRating = model.predict(userProducts)
-        // 从预测评分矩阵中提取得到用户推荐列表
-        val userRecs = preRating.filter(_.rating>0)
-          .map(
-              rating => ( rating.user, ( rating.product, rating.rating ) )
-          )
-          .groupByKey()
-          .map{
-              case (userId, recs) =>
-                  UserRecs( userId, recs.toList.sortWith(_._2>_._2).take(USER_MAX_RECOMMENDATION).map(x=>Recommendation(x._1,x._2)) )
-          }
-          .toDF()
-        userRecs.write
-          .option("uri", UserMongoDBConf.uri)
-          .option("collection", UserMongoDBConf.userRecs)
-          .mode("overwrite")
-          .format("com.mongodb.spark.sql")
-          .save()
 
         // 3. 利用商品的特征向量，计算商品的相似度列表
         val productFeatures = model.productFeatures.map{
@@ -108,6 +88,12 @@ object OfflineRecommender {
           .mode("overwrite")
           .format("com.mongodb.spark.sql")
           .save()
+
+        val productDF = spark.read.option("uri","mongodb://vm2:27017/recommend").option("collection","products").format("com.mongodb.spark.sql").load().toDF()
+        val intAsinDF = allIntDF.select("asin", "intAsin").distinct()
+        val productDFWithInt = productDF.join(intAsinDF, Seq("asin"),"left")
+        productDFWithInt.write.option("uri", "mongodb://vm2:27017/recommend").option("collection", "productsWithInt").mode("overwrite").format("com.mongodb.spark.sql").save()
+        allIntDF.write.option("uri", "mongodb://vm2:27017/recommend").option("collection", "allIntReviews").mode("overwrite").format("com.mongodb.spark.sql").save()
 
         spark.stop()
     }

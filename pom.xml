@@ -2,7 +2,17 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.recommend</groupId>
     <artifactId>AmazonRecomendSystem</artifactId>
+    <packaging>jar</packaging>
     <version>0.0.1-SNAPSHOT</version>
+
+    <properties>
+        <sbt.project.name>examples</sbt.project.name>
+        <build.testJarPhase>none</build.testJarPhase>
+        <build.copyDependenciesPhase>package</build.copyDependenciesPhase>
+        <hadoop.deps.scope>provided</hadoop.deps.scope>
+        <hive.deps.scope>provided</hive.deps.scope>
+        <parquet.deps.scope>provided</parquet.deps.scope>
+    </properties>
 
     <dependencies>
         <!-- https://mvnrepository.com/artifact/log4j/log4j -->
@@ -64,51 +74,45 @@
             <artifactId>jblas</artifactId>
             <version>1.2.1</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver -->
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongo-java-driver</artifactId>
+            <version>3.10.2</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-streaming-kafka-0-10 -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-streaming-kafka-0-10_2.11</artifactId>
+            <version>2.4.7</version>
+        </dependency>
 
     </dependencies>
 
     <build>
-        <!--声明并引入子项目共有的插件-->
+        <outputDirectory>target/scala-2.11/classes</outputDirectory>
+        <testOutputDirectory>target/scala-2.11/test-classes</testOutputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <!--所有的编译用JDK1.8-->
+                <artifactId>maven-deploy-plugin</artifactId>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
-            <!--maven的打包插件-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <artifactId>maven-install-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
             </plugin>
-            <!--该插件用于将scala代码编译成class文件-->
             <plugin>
-                <groupId>net.alchim31.maven</groupId>
-                <artifactId>scala-maven-plugin</artifactId>
-                <version>3.2.2</version>
-                <executions>
-                    <!--绑定到maven的编译阶段-->
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <outputDirectory>target/</outputDirectory>
+                </configuration>
             </plugin>
         </plugins>
     </build>
